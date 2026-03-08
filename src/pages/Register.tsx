@@ -3,7 +3,7 @@ import { useNavigate, Link, Navigate } from 'react-router-dom';
 import { useStore } from '../lib/store';
 import { motion } from 'motion/react';
 import { Mail, Lock, User, ArrowRight } from 'lucide-react';
-import bcrypt from 'bcryptjs';
+import { supabase } from '../lib/supabase';
 
 export function Register() {
   console.log('[Register Rendering] Initializing register page...');
@@ -11,7 +11,8 @@ export function Register() {
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
-  const { user, register } = useStore();
+  const [successMessage, setSuccessMessage] = useState('');
+  const { user } = useStore();
   const navigate = useNavigate();
 
   if (user) {
@@ -22,16 +23,35 @@ export function Register() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccessMessage('');
+    
+    console.log("Register button clicked");
+    console.log("Email:", email);
+
+    if (!supabase) {
+      setError('Supabase client is not initialized. Check your environment variables.');
+      return;
+    }
+
     if (email && password && username) {
-      const salt = bcrypt.genSaltSync(10);
-      const hash = bcrypt.hashSync(password, salt);
-      
-      const result = register(email, username, hash);
-      if (result?.error) {
-        setError(result.error);
-      } else {
-        navigate('/');
+      const { data, error: signupError } = await supabase.auth.signUp({
+        email: email,
+        password: password,
+        options: {
+          data: {
+            username: username,
+          }
+        }
+      });
+
+      if (signupError) {
+        console.error("Signup error:", signupError.message);
+        setError(signupError.message);
+        return;
       }
+
+      console.log("Signup success:", data);
+      setSuccessMessage("Account created successfully. Please check your email to verify your account.");
     }
   };
 
@@ -55,6 +75,12 @@ export function Register() {
         {error && (
           <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-xl text-red-200 text-sm text-center">
             {error}
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="mb-4 p-3 bg-emerald-500/20 border border-emerald-500/50 rounded-xl text-emerald-200 text-sm text-center">
+            {successMessage}
           </div>
         )}
 
