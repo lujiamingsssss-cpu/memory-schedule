@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { addDays, format, parseISO, differenceInDays } from 'date-fns';
 import type { User, UserSettings, StudyTask, ReviewSchedule, DailyStats } from '../types';
+import bcrypt from 'bcryptjs';
 
 const DEFAULT_USER: User = {
   id: 'local-user',
@@ -33,7 +34,6 @@ export function useStore() {
     const saved = localStorage.getItem('hoshi_settings');
     if (saved) {
       const parsed = JSON.parse(saved);
-      // Merge with defaults to ensure new fields like backgrounds exist
       return { 
         ...DEFAULT_SETTINGS, 
         ...parsed, 
@@ -57,15 +57,21 @@ export function useStore() {
   useEffect(() => {
     if (user) {
       localStorage.setItem('hoshi_user', JSON.stringify(user));
-      localStorage.setItem(`hoshi_profile_${user.email}`, JSON.stringify(user));
+      const savedSettings = localStorage.getItem(`hoshi_settings_${user.id}`);
+      if (savedSettings) {
+        setSettings(JSON.parse(savedSettings));
+      }
     } else {
       localStorage.removeItem('hoshi_user');
     }
   }, [user]);
 
   useEffect(() => {
+    if (user) {
+      localStorage.setItem(`hoshi_settings_${user.id}`, JSON.stringify(settings));
+    }
     localStorage.setItem('hoshi_settings', JSON.stringify(settings));
-  }, [settings]);
+  }, [settings, user]);
 
   useEffect(() => {
     localStorage.setItem('hoshi_tasks', JSON.stringify(tasks));
@@ -75,21 +81,60 @@ export function useStore() {
     localStorage.setItem('hoshi_reviews', JSON.stringify(reviews));
   }, [reviews]);
 
-  const login = (email: string) => {
-    const savedProfile = localStorage.getItem(`hoshi_profile_${email}`);
-    if (savedProfile) {
-      setUser(JSON.parse(savedProfile));
-    } else {
-      setUser({ ...DEFAULT_USER, email, username: email.split('@')[0] });
+  const register = (email: string, username: string, passwordHash: string) => {
+    const users = JSON.parse(localStorage.getItem('hoshi_users') || '[]');
+    if (users.find((u: any) => u.email === email)) {
+      return { error: 'Email already exists' };
     }
+    const newUser = {
+      id: crypto.randomUUID(),
+      email,
+      username,
+      avatar_url: `https://picsum.photos/seed/${username}/200/200`,
+      passwordHash
+    };
+    users.push(newUser);
+    localStorage.setItem('hoshi_users', JSON.stringify(users));
+    
+    const { passwordHash: _, ...userWithoutPassword } = newUser;
+    setUser(userWithoutPassword);
+    return { success: true };
+  };
+
+  const login = (email: string, passwordHash: string) => {
+    const users = JSON.parse(localStorage.getItem('hoshi_users') || '[]');
+    const foundUser = users.find((u: any) => u.email === email);
+    
+    if (!foundUser) {
+      return { error: 'Account does not exist' };
+    }
+    
+    if (passwordHash !== foundUser.passwordHash) {
+      return { error: 'Incorrect password' };
+    }
+
+    const { passwordHash: _, ...userWithoutPassword } = foundUser;
+    setUser(userWithoutPassword);
+    return { success: true };
   };
 
   const logout = () => {
     setUser(null);
+    localStorage.removeItem('hoshi_user');
   };
 
   const updateUser = (updates: Partial<User>) => {
-    if (user) setUser({ ...user, ...updates });
+    if (user) {
+      const updatedUser = { ...user, ...updates };
+      setUser(updatedUser);
+      
+      const users = JSON.parse(localStorage.getItem('hoshi_users') || '[]');
+      const userIndex = users.findIndex((u: any) => u.id === user.id);
+      if (userIndex !== -1) {
+        users[userIndex] = { ...users[userIndex], ...updates };
+        localStorage.setItem('hoshi_users', JSON.stringify(users));
+      }
+    }
   };
 
   const updateSettings = (newSettings: Partial<UserSettings>) => {
@@ -116,9 +161,7 @@ export function useStore() {
 
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: true } : t));
     
-    // Generate review schedules based on the task's learning date, not current date
     setReviews(prev => {
-      // Prevent duplicate review generation for the same task
       if (prev.some(r => r.task_id === taskId)) {
         return prev;
       }
@@ -144,7 +187,6 @@ export function useStore() {
       completeTask(taskId);
     } else {
       setTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: false } : t));
-      // Remove generated reviews when uncompleting
       setReviews(prev => prev.filter(r => r.task_id !== taskId));
     }
   };
@@ -166,7 +208,9 @@ export function useStore() {
     setReviews(prev => prev.filter(r => r.id !== reviewId));
   };
 
-  // Calculate daily stats dynamically
+  const userTasks = tasks.filter(t => t.user_id === user?.id);
+  const userReviews = reviews.filter(r => r.user_id === user?.id);
+
   const getDailyStats = (): DailyStats[] => {
     const statsMap = new Map<string, DailyStats>();
 
@@ -178,8 +222,7 @@ export function useStore() {
       statsMap.set(date, current);
     };
 
-    // Add completed tasks
-    tasks.filter(t => t.completed).forEach(t => {
+    userTasks.filter(t => t.completed).forEach(t => {
       let pages = 0;
       let days = 0;
       if (t.task_type === 'page' && t.start_page !== undefined && t.end_page !== undefined) {
@@ -190,9 +233,8 @@ export function useStore() {
       addToStats(t.learn_date, pages, days);
     });
 
-    // Add completed reviews
-    reviews.filter(r => r.completed).forEach(r => {
-      const task = tasks.find(t => t.id === r.task_id);
+    userReviews.filter(r => r.completed).forEach(r => {
+      const task = userTasks.find(t => t.id === r.task_id);
       if (task) {
         let pages = 0;
         let days = 0;
@@ -209,11 +251,12 @@ export function useStore() {
   };
 
   return { 
-    user, login, logout, updateUser,
+    user, login, register, logout, updateUser,
     settings, updateSettings, 
-    tasks, addTask, completeTask, toggleTaskCompletion, deleteTask,
-    reviews, completeReview, toggleReviewCompletion, deleteReview,
+    tasks: userTasks, addTask, completeTask, toggleTaskCompletion, deleteTask,
+    reviews: userReviews, completeReview, toggleReviewCompletion, deleteReview,
     getDailyStats
   };
 }
+
 

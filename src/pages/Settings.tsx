@@ -1,7 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../lib/store';
 import type { TaskMode, PageType, BackgroundTheme } from '../types';
-import { User as UserIcon, Settings as SettingsIcon, Layout, Save, Upload, Image as ImageIcon, X } from 'lucide-react';
+import { User as UserIcon, Settings as SettingsIcon, Layout, Upload, Image as ImageIcon, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 const BACKGROUND_OPTIONS: { value: BackgroundTheme; label: string; group: string }[] = [
@@ -23,9 +23,11 @@ export function Settings() {
   const [customBackgrounds, setCustomBackgrounds] = useState<Partial<Record<PageType, string>>>(settings.custom_backgrounds || {});
   
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [showToast, setShowToast] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isInitialMount = useRef(true);
 
-  const handleSave = () => {
+  const saveSettings = useCallback(() => {
     updateUser({
       username,
       avatar_url: avatarUrl,
@@ -35,8 +37,22 @@ export function Settings() {
       backgrounds,
       custom_backgrounds: customBackgrounds,
     });
-    alert('Settings saved successfully!');
-  };
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  }, [username, avatarUrl, taskMode, backgrounds, customBackgrounds, updateUser, updateSettings]);
+
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      saveSettings();
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [username, avatarUrl, taskMode, backgrounds, customBackgrounds, saveSettings]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -57,12 +73,26 @@ export function Settings() {
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-8 max-w-3xl mx-auto"
+      className="space-y-8 max-w-3xl mx-auto relative"
     >
       <header className="flex items-center gap-3 mb-8">
         <SettingsIcon className="w-8 h-8 text-indigo-400" />
-        <h1 className="text-3xl font-light tracking-tight text-white/90">Preferences</h1>
+        <h1 className="text-3xl font-light tracking-tight text-white/90">Settings</h1>
       </header>
+
+      <AnimatePresence>
+        {showToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-24 right-6 bg-emerald-500/20 border border-emerald-500/50 text-emerald-200 px-4 py-2 rounded-xl shadow-lg backdrop-blur-md z-50 flex items-center gap-2"
+          >
+            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            Settings saved automatically
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl space-y-10">
         
@@ -134,13 +164,13 @@ export function Settings() {
                   onClick={() => setTaskMode('page')}
                   className={`flex-1 py-3 rounded-lg text-sm font-medium transition-all ${taskMode === 'page' ? 'bg-indigo-500/20 text-indigo-200 border border-indigo-500/30 shadow-sm' : 'text-white/50 hover:text-white/80'}`}
                 >
-                  Page Mode (页数模式)
+                  Page Mode
                 </button>
                 <button
                   onClick={() => setTaskMode('date')}
                   className={`flex-1 py-3 rounded-lg text-sm font-medium transition-all ${taskMode === 'date' ? 'bg-indigo-500/20 text-indigo-200 border border-indigo-500/30 shadow-sm' : 'text-white/50 hover:text-white/80'}`}
                 >
-                  Date/Time Mode (日期模式)
+                  Date Mode
                 </button>
               </div>
             </div>
@@ -222,17 +252,6 @@ export function Settings() {
             ))}
           </div>
         </section>
-
-        {/* Save Button */}
-        <div className="pt-6 border-t border-white/10 flex justify-end">
-          <button
-            onClick={handleSave}
-            className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-medium py-3 px-8 rounded-xl shadow-lg shadow-indigo-500/25 transition-all active:scale-[0.98] flex items-center gap-2"
-          >
-            <Save className="w-5 h-5" />
-            Save Preferences
-          </button>
-        </div>
       </div>
 
       {/* Avatar Preview Modal */}

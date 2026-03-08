@@ -3,21 +3,29 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useStore } from '../lib/store';
 import { motion } from 'motion/react';
 import { Mail, Lock, User, ArrowRight } from 'lucide-react';
+import bcrypt from 'bcryptjs';
 
 export function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
-  const { login } = useStore();
+  const [error, setError] = useState('');
+  const { register } = useStore();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     if (email && password && username) {
-      // In a real app, we'd create the user here.
-      // For now, just log them in.
-      login(email);
-      navigate('/');
+      const salt = bcrypt.genSaltSync(10);
+      const hash = bcrypt.hashSync(password, salt);
+      
+      const result = register(email, username, hash);
+      if (result?.error) {
+        setError(result.error);
+      } else {
+        navigate('/');
+      }
     }
   };
 
@@ -32,11 +40,17 @@ export function Register() {
       >
         <div className="text-center mb-8">
           <div className="w-16 h-16 mx-auto bg-gradient-to-tr from-blue-400 to-indigo-500 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 mb-4">
-            <span className="text-2xl font-bold text-white tracking-tighter">星</span>
+            <span className="text-2xl font-bold text-white tracking-tighter">H</span>
           </div>
           <h1 className="text-3xl font-light tracking-tight text-white mb-2">Join Us</h1>
           <p className="text-white/60 text-sm">Start your learning journey</p>
         </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-xl text-red-200 text-sm text-center">
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-1">

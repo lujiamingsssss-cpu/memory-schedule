@@ -155,7 +155,7 @@ export function LearningLog() {
   const recentRecords = useMemo(() => {
     const completedTasks = tasks.filter(t => t.completed).map(t => ({
       id: `task-${t.id}`,
-      title: t.task_type === 'page' ? `第${t.start_page}页 - 第${t.end_page}页` : `${t.start_date} - ${t.end_date}`,
+      title: t.task_type === 'page' ? `Pages ${t.start_page} - ${t.end_page}` : `${t.start_date} - ${t.end_date}`,
       type: 'Task',
       date: t.learn_date,
       pages: t.task_type === 'page' ? (t.end_page! - t.start_page! + 1) : 0,
@@ -167,7 +167,7 @@ export function LearningLog() {
       if (!t) return null;
       return {
         id: `review-${r.id}`,
-        title: t.task_type === 'page' ? `第${t.start_page}页 - 第${t.end_page}页` : (t.is_half_day ? `${t.start_date} (半天)` : `${t.start_date} - ${t.end_date}`),
+        title: t.task_type === 'page' ? `Pages ${t.start_page} - ${t.end_page}` : (t.is_half_day ? `${t.start_date} (Half Day)` : `${t.start_date} - ${t.end_date}`),
         type: `Review (Day ${REVIEW_INTERVALS[r.review_stage - 1] + 1})`,
         date: r.review_date,
         pages: t.task_type === 'page' ? (t.end_page! - t.start_page! + 1) : 0,
@@ -424,7 +424,7 @@ function DayDetailsModal({
     if (task.task_type === 'page') {
       return `Pages ${task.start_page} - ${task.end_page}`;
     }
-    return task.is_half_day ? `${task.start_date} (半天)` : `${task.start_date} to ${task.end_date}`;
+    return task.is_half_day ? `${task.start_date} (Half Day)` : `${task.start_date} to ${task.end_date}`;
   };
 
   return (
@@ -538,7 +538,7 @@ function DayDetailsModal({
                         className="w-4 h-4 rounded border-white/20 bg-black/20 text-indigo-500 focus:ring-indigo-500/50"
                       />
                       <label htmlFor="modalHalfDay" className="text-xs text-white/70 cursor-pointer">
-                        半天任务 (0.5天)
+                        Half Day Task (0.5 Days)
                       </label>
                     </div>
                   </div>

@@ -65,11 +65,11 @@ export function Dashboard() {
 
   const renderTaskContent = (task: any) => {
     if (task.task_type === 'page') {
-      return `第${task.start_page}页 - 第${task.end_page}页`;
+      return `Pages ${task.start_page} - ${task.end_page}`;
     } else {
-      const start = format(parseISO(task.start_date), 'yyyy年M月d日');
-      const end = format(parseISO(task.end_date), 'yyyy年M月d日');
-      return task.is_half_day ? `${start} (半天)` : `${start} - ${end}`;
+      const start = format(parseISO(task.start_date), 'MMM d, yyyy');
+      const end = format(parseISO(task.end_date), 'MMM d, yyyy');
+      return task.is_half_day ? `${start} (Half Day)` : `${start} - ${end}`;
     }
   };
 
@@ -181,7 +181,7 @@ export function Dashboard() {
                     className="w-4 h-4 rounded border-white/20 bg-black/20 text-indigo-500 focus:ring-indigo-500/50"
                   />
                   <label htmlFor="halfDay" className="text-sm text-white/70 cursor-pointer">
-                    半天任务 (0.5天)
+                    Half Day Task (0.5 Days)
                   </label>
                 </div>
               </div>
@@ -263,14 +263,14 @@ export function Dashboard() {
           <div className="space-y-4">
             <div className="bg-black/20 border border-white/5 rounded-xl p-6 text-center">
               <div className="text-4xl font-light tracking-tighter text-white mb-1">
-                共 {todayPages} 页
+                {todayPages}
               </div>
               <div className="text-sm text-white/50 uppercase tracking-widest">Total Pages</div>
             </div>
             
             <div className="bg-black/20 border border-white/5 rounded-xl p-6 text-center">
               <div className="text-4xl font-light tracking-tighter text-white mb-1">
-                共 {todayDays} 天
+                {todayDays}
               </div>
               <div className="text-sm text-white/50 uppercase tracking-widest">Total Days</div>
             </div>

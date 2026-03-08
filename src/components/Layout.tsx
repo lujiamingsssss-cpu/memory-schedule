@@ -52,7 +52,7 @@ export function Layout() {
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-              <span className="font-bold text-sm tracking-tighter">星</span>
+              <span className="font-bold text-sm tracking-tighter">H</span>
             </div>
             <span className="font-medium tracking-wide text-lg drop-shadow-md">Hoshi Study</span>
           </div>
