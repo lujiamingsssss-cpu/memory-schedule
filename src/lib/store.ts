@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { addDays, format, parseISO, differenceInDays } from 'date-fns';
 import type { User, UserSettings, StudyTask, ReviewSchedule, DailyStats } from '../types';
 import bcrypt from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
 
 const DEFAULT_USER: User = {
   id: 'local-user',
@@ -87,7 +88,7 @@ export function useStore() {
       return { error: 'Email already exists' };
     }
     const newUser = {
-      id: crypto.randomUUID(),
+      id: uuidv4(),
       email,
       username,
       avatar_url: `https://picsum.photos/seed/${username}/200/200`,
@@ -145,7 +146,7 @@ export function useStore() {
     if (!user) return;
     const newTask: StudyTask = {
       ...task,
-      id: crypto.randomUUID(),
+      id: uuidv4(),
       user_id: user.id,
       completed: false,
       created_at: new Date().toISOString(),
@@ -167,7 +168,7 @@ export function useStore() {
       }
       
       const newReviews: ReviewSchedule[] = REVIEW_INTERVALS.map((interval, index) => ({
-        id: crypto.randomUUID(),
+        id: uuidv4(),
         task_id: task.id,
         user_id: user.id,
         review_date: format(addDays(parseISO(task.learn_date), interval), 'yyyy-MM-dd'),
