@@ -28,7 +28,12 @@ export function Layout() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    console.log('[Auth Check] Current user:', user ? user.email : 'Not logged in');
+  }, [user]);
+
   if (!user) {
+    console.log('[Auth Check] Redirecting to /login');
     return <Navigate to="/login" replace />;
   }
 

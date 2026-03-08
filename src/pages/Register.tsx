@@ -1,17 +1,23 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, Navigate } from 'react-router-dom';
 import { useStore } from '../lib/store';
 import { motion } from 'motion/react';
 import { Mail, Lock, User, ArrowRight } from 'lucide-react';
 import bcrypt from 'bcryptjs';
 
 export function Register() {
+  console.log('[Register Rendering] Initializing register page...');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
-  const { register } = useStore();
+  const { user, register } = useStore();
   const navigate = useNavigate();
+
+  if (user) {
+    console.log('[Register] User already logged in, redirecting to dashboard');
+    return <Navigate to="/" replace />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

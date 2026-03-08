@@ -80,37 +80,53 @@ export function useStore() {
   });
 
   useEffect(() => {
-    if (user) {
-      localStorage.setItem('hoshi_user', JSON.stringify(user));
-      try {
-        const savedSettings = localStorage.getItem(`hoshi_settings_${user.id}`);
-        if (savedSettings && savedSettings !== 'undefined') {
-          const parsed = JSON.parse(savedSettings);
-          if (parsed && typeof parsed === 'object') {
-            setSettings(parsed);
+    try {
+      if (user) {
+        localStorage.setItem('hoshi_user', JSON.stringify(user));
+        try {
+          const savedSettings = localStorage.getItem(`hoshi_settings_${user.id}`);
+          if (savedSettings && savedSettings !== 'undefined') {
+            const parsed = JSON.parse(savedSettings);
+            if (parsed && typeof parsed === 'object') {
+              setSettings(parsed);
+            }
           }
+        } catch (e) {
+          console.error('Failed to parse user settings', e);
         }
-      } catch (e) {
-        console.error('Failed to parse user settings', e);
+      } else {
+        localStorage.removeItem('hoshi_user');
       }
-    } else {
-      localStorage.removeItem('hoshi_user');
+    } catch (e) {
+      console.error('Failed to access localStorage', e);
     }
   }, [user]);
 
   useEffect(() => {
-    if (user) {
-      localStorage.setItem(`hoshi_settings_${user.id}`, JSON.stringify(settings));
+    try {
+      if (user) {
+        localStorage.setItem(`hoshi_settings_${user.id}`, JSON.stringify(settings));
+      }
+      localStorage.setItem('hoshi_settings', JSON.stringify(settings));
+    } catch (e) {
+      console.error('Failed to save settings to localStorage', e);
     }
-    localStorage.setItem('hoshi_settings', JSON.stringify(settings));
   }, [settings, user]);
 
   useEffect(() => {
-    localStorage.setItem('hoshi_tasks', JSON.stringify(tasks));
+    try {
+      localStorage.setItem('hoshi_tasks', JSON.stringify(tasks));
+    } catch (e) {
+      console.error('Failed to save tasks to localStorage', e);
+    }
   }, [tasks]);
 
   useEffect(() => {
-    localStorage.setItem('hoshi_reviews', JSON.stringify(reviews));
+    try {
+      localStorage.setItem('hoshi_reviews', JSON.stringify(reviews));
+    } catch (e) {
+      console.error('Failed to save reviews to localStorage', e);
+    }
   }, [reviews]);
 
   const register = (email: string, username: string, passwordHash: string) => {
@@ -131,8 +147,13 @@ export function useStore() {
       avatar_url: `https://picsum.photos/seed/${username}/200/200`,
       passwordHash
     };
-    users.push(newUser);
-    localStorage.setItem('hoshi_users', JSON.stringify(users));
+    try {
+      users.push(newUser);
+      localStorage.setItem('hoshi_users', JSON.stringify(users));
+    } catch (e) {
+      console.error('Failed to save user to localStorage', e);
+      return { error: 'Failed to create account due to storage error' };
+    }
     
     const { passwordHash: _, ...userWithoutPassword } = newUser;
     setUser(userWithoutPassword);
@@ -164,7 +185,11 @@ export function useStore() {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('hoshi_user');
+    try {
+      localStorage.removeItem('hoshi_user');
+    } catch (e) {
+      console.error('Failed to remove user from localStorage', e);
+    }
   };
 
   const updateUser = (updates: Partial<User>) => {
@@ -182,7 +207,11 @@ export function useStore() {
       const userIndex = users.findIndex((u: any) => u.id === user.id);
       if (userIndex !== -1) {
         users[userIndex] = { ...users[userIndex], ...updates };
-        localStorage.setItem('hoshi_users', JSON.stringify(users));
+        try {
+          localStorage.setItem('hoshi_users', JSON.stringify(users));
+        } catch (e) {
+          console.error('Failed to save updated user to localStorage', e);
+        }
       }
     }
   };

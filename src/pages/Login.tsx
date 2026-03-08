@@ -1,16 +1,22 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, Navigate } from 'react-router-dom';
 import { useStore } from '../lib/store';
 import { motion } from 'motion/react';
 import { Mail, Lock, ArrowRight } from 'lucide-react';
 import bcrypt from 'bcryptjs';
 
 export function Login() {
+  console.log('[Login Rendering] Initializing login page...');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { login } = useStore();
+  const { user, login } = useStore();
   const navigate = useNavigate();
+
+  if (user) {
+    console.log('[Login] User already logged in, redirecting to dashboard');
+    return <Navigate to="/" replace />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +33,16 @@ export function Login() {
       // Let's use bcrypt.compareSync in store.ts, or just do it here.
       // Let's just pass the password to login and let login handle it.
       
-      const users = JSON.parse(localStorage.getItem('hoshi_users') || '[]');
+      let users = [];
+      try {
+        const saved = localStorage.getItem('hoshi_users');
+        const parsed = saved ? JSON.parse(saved) : [];
+        users = Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        console.error('Failed to parse users', e);
+        users = [];
+      }
+      
       const foundUser = users.find((u: any) => u.email === email);
       
       if (!foundUser) {

@@ -5,6 +5,7 @@ import { Book, Calendar, Plus, Flame, CheckCircle2, Circle } from 'lucide-react'
 import { motion } from 'motion/react';
 
 export function Dashboard() {
+  console.log('[Dashboard Rendering] Initializing dashboard...');
   const { user, settings, tasks, addTask, completeTask, reviews, completeReview } = useStore();
   
   const [startPage, setStartPage] = useState('');
