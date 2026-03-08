@@ -67,8 +67,8 @@ export function Dashboard() {
     if (task.task_type === 'page') {
       return `Pages ${task.start_page} - ${task.end_page}`;
     } else {
-      const start = format(parseISO(task.start_date), 'MMM d, yyyy');
-      const end = format(parseISO(task.end_date), 'MMM d, yyyy');
+      const start = task.start_date ? format(parseISO(task.start_date), 'MMM d, yyyy') : 'Unknown';
+      const end = task.end_date ? format(parseISO(task.end_date), 'MMM d, yyyy') : 'Unknown';
       return task.is_half_day ? `${start} (Half Day)` : `${start} - ${end}`;
     }
   };

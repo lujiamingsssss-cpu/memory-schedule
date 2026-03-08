@@ -27,40 +27,71 @@ export const REVIEW_INTERVALS = [1, 3, 6, 14, 29];
 
 export function useStore() {
   const [user, setUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('hoshi_user');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem('hoshi_user');
+      const parsed = saved && saved !== 'undefined' ? JSON.parse(saved) : null;
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch (e) {
+      console.error('Failed to parse user from localStorage', e);
+      return null;
+    }
   });
 
   const [settings, setSettings] = useState<UserSettings>(() => {
-    const saved = localStorage.getItem('hoshi_settings');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return { 
-        ...DEFAULT_SETTINGS, 
-        ...parsed, 
-        backgrounds: { ...DEFAULT_SETTINGS.backgrounds, ...(parsed.backgrounds || {}) },
-        custom_backgrounds: { ...DEFAULT_SETTINGS.custom_backgrounds, ...(parsed.custom_backgrounds || {}) }
-      };
+    try {
+      const saved = localStorage.getItem('hoshi_settings');
+      if (saved && saved !== 'undefined') {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          return { 
+            ...DEFAULT_SETTINGS, 
+            ...parsed, 
+            backgrounds: { ...DEFAULT_SETTINGS.backgrounds, ...(parsed.backgrounds || {}) },
+            custom_backgrounds: { ...DEFAULT_SETTINGS.custom_backgrounds, ...(parsed.custom_backgrounds || {}) }
+          };
+        }
+      }
+    } catch (e) {
+      console.error('Failed to parse settings from localStorage', e);
     }
     return DEFAULT_SETTINGS;
   });
 
   const [tasks, setTasks] = useState<StudyTask[]>(() => {
-    const saved = localStorage.getItem('hoshi_tasks');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('hoshi_tasks');
+      const parsed = saved && saved !== 'undefined' ? JSON.parse(saved) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.error('Failed to parse tasks from localStorage', e);
+      return [];
+    }
   });
 
   const [reviews, setReviews] = useState<ReviewSchedule[]>(() => {
-    const saved = localStorage.getItem('hoshi_reviews');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('hoshi_reviews');
+      const parsed = saved && saved !== 'undefined' ? JSON.parse(saved) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.error('Failed to parse reviews from localStorage', e);
+      return [];
+    }
   });
 
   useEffect(() => {
     if (user) {
       localStorage.setItem('hoshi_user', JSON.stringify(user));
-      const savedSettings = localStorage.getItem(`hoshi_settings_${user.id}`);
-      if (savedSettings) {
-        setSettings(JSON.parse(savedSettings));
+      try {
+        const savedSettings = localStorage.getItem(`hoshi_settings_${user.id}`);
+        if (savedSettings && savedSettings !== 'undefined') {
+          const parsed = JSON.parse(savedSettings);
+          if (parsed && typeof parsed === 'object') {
+            setSettings(parsed);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to parse user settings', e);
       }
     } else {
       localStorage.removeItem('hoshi_user');
@@ -83,7 +114,13 @@ export function useStore() {
   }, [reviews]);
 
   const register = (email: string, username: string, passwordHash: string) => {
-    const users = JSON.parse(localStorage.getItem('hoshi_users') || '[]');
+    let users = [];
+    try {
+      const parsed = JSON.parse(localStorage.getItem('hoshi_users') || '[]');
+      users = Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      users = [];
+    }
     if (users.find((u: any) => u.email === email)) {
       return { error: 'Email already exists' };
     }
@@ -103,7 +140,13 @@ export function useStore() {
   };
 
   const login = (email: string, passwordHash: string) => {
-    const users = JSON.parse(localStorage.getItem('hoshi_users') || '[]');
+    let users = [];
+    try {
+      const parsed = JSON.parse(localStorage.getItem('hoshi_users') || '[]');
+      users = Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      users = [];
+    }
     const foundUser = users.find((u: any) => u.email === email);
     
     if (!foundUser) {
@@ -129,7 +172,13 @@ export function useStore() {
       const updatedUser = { ...user, ...updates };
       setUser(updatedUser);
       
-      const users = JSON.parse(localStorage.getItem('hoshi_users') || '[]');
+      let users = [];
+      try {
+        const parsed = JSON.parse(localStorage.getItem('hoshi_users') || '[]');
+        users = Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        users = [];
+      }
       const userIndex = users.findIndex((u: any) => u.id === user.id);
       if (userIndex !== -1) {
         users[userIndex] = { ...users[userIndex], ...updates };
@@ -171,7 +220,7 @@ export function useStore() {
         id: uuidv4(),
         task_id: task.id,
         user_id: user.id,
-        review_date: format(addDays(parseISO(task.learn_date), interval), 'yyyy-MM-dd'),
+        review_date: format(addDays(parseISO(task.learn_date || new Date().toISOString()), interval), 'yyyy-MM-dd'),
         review_stage: index + 1,
         completed: false,
         created_at: new Date().toISOString(),
@@ -248,7 +297,11 @@ export function useStore() {
       }
     });
 
-    return Array.from(statsMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+    return Array.from(statsMap.values()).sort((a, b) => {
+      const dateA = a.date || '';
+      const dateB = b.date || '';
+      return dateA.localeCompare(dateB);
+    });
   };
 
   return { 

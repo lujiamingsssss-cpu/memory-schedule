@@ -159,7 +159,7 @@ export function LearningLog() {
       type: 'Task',
       date: t.learn_date,
       pages: t.task_type === 'page' ? (t.end_page! - t.start_page! + 1) : 0,
-      days: t.task_type === 'date' ? (t.is_half_day ? 0.5 : (differenceInDays(parseISO(t.end_date!), parseISO(t.start_date!)) + 1)) : 0,
+      days: t.task_type === 'date' && t.start_date && t.end_date ? (t.is_half_day ? 0.5 : (differenceInDays(parseISO(t.end_date), parseISO(t.start_date)) + 1)) : 0,
     }));
 
     const completedReviews = reviews.filter(r => r.completed).map(r => {
@@ -171,7 +171,7 @@ export function LearningLog() {
         type: `Review (Day ${REVIEW_INTERVALS[r.review_stage - 1] + 1})`,
         date: r.review_date,
         pages: t.task_type === 'page' ? (t.end_page! - t.start_page! + 1) : 0,
-        days: t.task_type === 'date' ? (t.is_half_day ? 0.5 : (differenceInDays(parseISO(t.end_date!), parseISO(t.start_date!)) + 1)) : 0,
+        days: t.task_type === 'date' && t.start_date && t.end_date ? (t.is_half_day ? 0.5 : (differenceInDays(parseISO(t.end_date), parseISO(t.start_date)) + 1)) : 0,
       };
     }).filter(Boolean) as any[];
 
@@ -261,14 +261,14 @@ export function LearningLog() {
                 
                 dayTasks.forEach(t => {
                   if (t.task_type === 'page') plannedPages += (t.end_page! - t.start_page! + 1);
-                  if (t.task_type === 'date') plannedDays += (t.is_half_day ? 0.5 : (differenceInDays(parseISO(t.end_date!), parseISO(t.start_date!)) + 1));
+                  if (t.task_type === 'date' && t.start_date && t.end_date) plannedDays += (t.is_half_day ? 0.5 : (differenceInDays(parseISO(t.end_date), parseISO(t.start_date)) + 1));
                 });
                 
                 dayReviews.forEach(r => {
                   const t = tasks.find(task => task.id === r.task_id);
                   if (t) {
                     if (t.task_type === 'page') plannedPages += (t.end_page! - t.start_page! + 1);
-                    if (t.task_type === 'date') plannedDays += (t.is_half_day ? 0.5 : (differenceInDays(parseISO(t.end_date!), parseISO(t.start_date!)) + 1));
+                    if (t.task_type === 'date' && t.start_date && t.end_date) plannedDays += (t.is_half_day ? 0.5 : (differenceInDays(parseISO(t.end_date), parseISO(t.start_date)) + 1));
                   }
                 });
                 
@@ -327,7 +327,7 @@ export function LearningLog() {
                     </span>
                   </div>
                   <div className="text-sm text-white/50 flex items-center gap-3">
-                    <span>{format(parseISO(record.date), 'MMMM d, yyyy')}</span>
+                    <span>{record.date ? format(parseISO(record.date), 'MMMM d, yyyy') : 'Unknown Date'}</span>
                     <span className="w-1 h-1 rounded-full bg-white/20" />
                     <span className="flex items-center gap-1">
                       {record.pages > 0 && <><Book className="w-3 h-3" /> {record.pages} pages</>}
@@ -381,14 +381,14 @@ function DayDetailsModal({
   
   dayTasks.forEach((t: any) => {
     if (t.task_type === 'page') plannedPages += (t.end_page! - t.start_page! + 1);
-    if (t.task_type === 'date') plannedDays += (differenceInDays(parseISO(t.end_date!), parseISO(t.start_date!)) + 1);
+    if (t.task_type === 'date' && t.start_date && t.end_date) plannedDays += (differenceInDays(parseISO(t.end_date), parseISO(t.start_date)) + 1);
   });
   
   dayReviews.forEach((r: any) => {
     const t = tasks.find((task: any) => task.id === r.task_id);
     if (t) {
       if (t.task_type === 'page') plannedPages += (t.end_page! - t.start_page! + 1);
-      if (t.task_type === 'date') plannedDays += (differenceInDays(parseISO(t.end_date!), parseISO(t.start_date!)) + 1);
+      if (t.task_type === 'date' && t.start_date && t.end_date) plannedDays += (differenceInDays(parseISO(t.end_date), parseISO(t.start_date)) + 1);
     }
   });
 
