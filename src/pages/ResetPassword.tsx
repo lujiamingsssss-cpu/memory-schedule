@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Mail, ArrowLeft, Send } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabaseClient';
 import { ThreeBackground } from '../components/ThreeBackground';
 
 export function ResetPassword() {
@@ -18,20 +18,33 @@ export function ResetPassword() {
     setMessage('');
 
     try {
+      console.log("Sending password reset request:", email);
+      
+      // Prevent browser network error if using placeholder URL
+      if (process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('YOUR_PROJECT_ID') || process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') || !process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        throw new Error('Failed to fetch');
+      }
+
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/update-password`,
       });
 
       if (error) {
+        if (!error.message?.includes('Failed to fetch')) {
+          console.error("Reset error:", error.message);
+        }
         setStatus('error');
-        setMessage(error.message);
+        setMessage(error.message?.includes('Failed to fetch') ? 'Unable to connect to authentication server.' : error.message);
       } else {
         setStatus('success');
         setMessage('Password reset email has been sent.');
       }
     } catch (err: any) {
+      if (!err.message?.includes('Failed to fetch')) {
+        console.error("Connection error:", err);
+      }
       setStatus('error');
-      setMessage(err.message || 'An unexpected error occurred.');
+      setMessage(err.message?.includes('Failed to fetch') ? 'Unable to connect to authentication server.' : (err.message || 'An unexpected error occurred.'));
     }
   };
 

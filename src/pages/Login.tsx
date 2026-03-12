@@ -3,7 +3,7 @@ import { useNavigate, Link, Navigate } from 'react-router-dom';
 import { useStore } from '../lib/store';
 import { motion } from 'motion/react';
 import { Mail, Lock, ArrowRight } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabaseClient';
 import bcrypt from 'bcryptjs';
 import { ThreeBackground } from '../components/ThreeBackground';
 
@@ -24,15 +24,26 @@ export function Login() {
     e.preventDefault();
     setError('');
     if (email && password) {
-      const { data, error: loginError } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: password
-      });
+      let loginError = null;
+      let data = null;
+      
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('YOUR_PROJECT_ID') && !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        const result = await supabase.auth.signInWithPassword({
+          email: email,
+          password: password
+        });
+        data = result.data;
+        loginError = result.error;
+      } else {
+        loginError = { message: 'Failed to fetch' };
+      }
 
       if (loginError) {
-        console.error(loginError.message);
-        setError(loginError.message);
-        return;
+        if (loginError.message !== 'Failed to fetch') {
+          console.error(loginError.message);
+          setError(loginError.message);
+          return;
+        }
       }
 
       // Sync with local store for backward compatibility
@@ -54,7 +65,11 @@ export function Login() {
         register(email, email.split('@')[0], hash);
       } else {
         const hashToUse = foundUser.passwordHash;
-        login(email, hashToUse);
+        const result = login(email, hashToUse);
+        if (!result.success) {
+          setError(result.error || 'Login failed');
+          return;
+        }
       }
 
       navigate('/');

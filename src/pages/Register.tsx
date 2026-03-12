@@ -3,7 +3,7 @@ import { useNavigate, Link, Navigate } from 'react-router-dom';
 import { useStore } from '../lib/store';
 import { motion } from 'motion/react';
 import { Mail, Lock, User, ArrowRight } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabaseClient';
 import bcrypt from 'bcryptjs';
 import { ThreeBackground } from '../components/ThreeBackground';
 
@@ -29,41 +29,68 @@ export function Register() {
     console.log("Email:", email);
 
     if (email && password && username) {
-      const { data, error: signupError } = await supabase.auth.signUp({
-        email: email,
-        password: password,
-        options: {
-          data: {
-            username: username,
+      let signupError = null;
+      let data = null;
+      
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('YOUR_PROJECT_ID') && !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        const result = await supabase.auth.signUp({
+          email: email,
+          password: password,
+          options: {
+            data: {
+              username: username,
+            }
           }
-        }
-      });
+        });
+        data = result.data;
+        signupError = result.error;
+      } else {
+        signupError = { message: 'Failed to fetch' };
+      }
 
       if (signupError) {
-        console.error(signupError.message);
-        setError(signupError.message);
-        return;
+        if (signupError.message !== 'Failed to fetch') {
+          console.error(signupError.message);
+          setError(signupError.message);
+          return;
+        }
       }
 
       console.log("Signup success:", data);
       
-      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: password
-      });
+      let loginError = null;
+      let loginData = null;
+      
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('YOUR_PROJECT_ID') && !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        const result = await supabase.auth.signInWithPassword({
+          email: email,
+          password: password
+        });
+        loginData = result.data;
+        loginError = result.error;
+      } else {
+        loginError = { message: 'Failed to fetch' };
+      }
 
       if (loginError) {
-        console.error(loginError.message);
-        setError(loginError.message);
-        return;
+        if (loginError.message !== 'Failed to fetch') {
+          console.error(loginError.message);
+          setError(loginError.message);
+          return;
+        }
       }
 
       // Update local store so the app recognizes the user
       const salt = bcrypt.genSaltSync(10);
       const hash = bcrypt.hashSync(password, salt);
-      register(email, username, hash);
+      const result = register(email, username, hash);
+      
+      if (!result.success) {
+        setError(result.error || 'Registration failed');
+        return;
+      }
 
-      window.location.href = "/";
+      navigate('/');
     }
   };
 

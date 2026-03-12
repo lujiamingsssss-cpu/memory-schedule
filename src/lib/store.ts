@@ -185,9 +185,13 @@ export const useStoreBase = create<StoreState>((set, get) => {
         console.error('Failed to remove user from localStorage', e);
       }
       // Also sign out from Supabase
-      import('./supabase').then(({ supabase }) => {
-        supabase.auth.signOut().catch(console.error);
-      });
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('YOUR_PROJECT_ID') && !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        import('./supabaseClient').then(({ supabase }) => {
+          supabase.auth.signOut().catch((e) => {
+            if (e?.message !== 'Failed to fetch') console.error(e);
+          });
+        });
+      }
     },
 
     updateUser: (updates) => {
