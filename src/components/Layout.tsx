@@ -6,6 +6,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useStore } from '../lib/store';
 import { motion, AnimatePresence } from 'motion/react';
+import { PlanManager } from './PlanManager';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -63,6 +64,7 @@ export function Layout() {
           </div>
           
           <div className="flex items-center gap-4">
+            <PlanManager />
             <div className="flex items-center gap-1 bg-white/10 backdrop-blur-md rounded-full p-1 border border-white/10 shadow-xl">
               {navItems.map((item) => (
                 <Link
@@ -143,7 +145,7 @@ export function Layout() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-[#1a1c2c] border border-white/10 rounded-3xl p-6 max-w-sm w-full shadow-2xl relative"
+              className="bg-black border border-white/10 rounded-3xl p-6 max-w-sm w-full shadow-2xl relative"
             >
               <button 
                 onClick={() => setIsLogoutModalOpen(false)}

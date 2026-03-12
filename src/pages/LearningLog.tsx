@@ -433,7 +433,7 @@ function DayDetailsModal({
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="w-full max-w-md bg-[#1a1c2c]/90 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+        className="w-full max-w-md bg-black/90 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
       >
         <div className="p-6 border-b border-white/10 flex items-center justify-between shrink-0">
           <div>
@@ -507,7 +507,7 @@ function DayDetailsModal({
                             setStartDate(e.target.value);
                             if (isHalfDay) setEndDate(e.target.value);
                           }}
-                          className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          className="w-full bg-blue-500 hover:bg-blue-600 text-white rounded-lg px-[14px] py-[8px] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 shadow-[0_2px_6px_rgba(0,0,0,0.15)] transition-colors"
                           required
                         />
                       </div>
@@ -519,7 +519,7 @@ function DayDetailsModal({
                           value={endDate}
                           onChange={(e) => setEndDate(e.target.value)}
                           disabled={isHalfDay}
-                          className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+                          className="w-full bg-blue-500 hover:bg-blue-600 text-white rounded-lg px-[14px] py-[8px] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 shadow-[0_2px_6px_rgba(0,0,0,0.15)] transition-colors disabled:opacity-50 disabled:hover:bg-blue-500"
                           required
                         />
                       </div>

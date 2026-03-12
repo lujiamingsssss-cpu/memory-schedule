@@ -3,14 +3,16 @@ import { useNavigate, Link, Navigate } from 'react-router-dom';
 import { useStore } from '../lib/store';
 import { motion } from 'motion/react';
 import { Mail, Lock, ArrowRight } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import bcrypt from 'bcryptjs';
+import { ThreeBackground } from '../components/ThreeBackground';
 
 export function Login() {
   console.log('[Login Rendering] Initializing login page...');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { user, login } = useStore();
+  const { user, login, register } = useStore();
   const navigate = useNavigate();
 
   if (user) {
@@ -22,17 +24,18 @@ export function Login() {
     e.preventDefault();
     setError('');
     if (email && password) {
-      // In a real app we would compare the hash, but since we are simulating
-      // we hash the input to compare with the stored hash, or we can just use bcrypt.compare
-      // Wait, in store.ts we did: if (passwordHash !== foundUser.passwordHash)
-      // Actually, bcrypt.compare is better. Let's change store.ts to store plain text or we hash it here.
-      // If we use bcrypt, we should hash on register and compare on login.
-      // But store.ts is synchronous. Let's just pass the plain password to store and let store handle it?
-      // No, store.ts is synchronous, bcrypt.compare is async.
-      // Let's just use a simple hash or pass plain password for now, or use bcrypt.compareSync.
-      // Let's use bcrypt.compareSync in store.ts, or just do it here.
-      // Let's just pass the password to login and let login handle it.
-      
+      const { data, error: loginError } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password
+      });
+
+      if (loginError) {
+        console.error(loginError.message);
+        setError(loginError.message);
+        return;
+      }
+
+      // Sync with local store for backward compatibility
       let users = [];
       try {
         const saved = localStorage.getItem('hoshi_users');
@@ -46,28 +49,21 @@ export function Login() {
       const foundUser = users.find((u: any) => u.email === email);
       
       if (!foundUser) {
-        setError('Account does not exist');
-        return;
-      }
-
-      const isValid = bcrypt.compareSync(password, foundUser.passwordHash);
-      if (!isValid) {
-        setError('Incorrect password');
-        return;
-      }
-
-      const result = login(email, foundUser.passwordHash);
-      if (result?.error) {
-        setError(result.error);
+        const salt = bcrypt.genSaltSync(10);
+        const hash = bcrypt.hashSync(password, salt);
+        register(email, email.split('@')[0], hash);
       } else {
-        navigate('/');
+        const hashToUse = foundUser.passwordHash;
+        login(email, hashToUse);
       }
+
+      navigate('/');
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 relative">
-      <div className="absolute inset-0 bg-gradient-to-b from-[#87CEEB]/20 to-[#4682B4]/40 -z-10 pointer-events-none" />
+      <ThreeBackground />
       
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
@@ -105,7 +101,12 @@ export function Login() {
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm font-medium text-white/80 pl-1">Password</label>
+            <div className="flex items-center justify-between pl-1 pr-1">
+              <label className="text-sm font-medium text-white/80">Password</label>
+              <Link to="/reset-password" className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+                Forgot Password?
+              </Link>
+            </div>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
               <input

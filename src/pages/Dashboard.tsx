@@ -139,7 +139,7 @@ export function Dashboard() {
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-white/70 mb-1">Start Date</label>
                     <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/80" />
                       <input
                         type="date"
                         value={startDate}
@@ -147,7 +147,7 @@ export function Dashboard() {
                           setStartDate(e.target.value);
                           if (isHalfDay) setEndDate(e.target.value);
                         }}
-                        className="w-full bg-black/20 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                        className="w-full bg-blue-500 hover:bg-blue-600 text-white rounded-lg pl-10 pr-[14px] py-[8px] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 shadow-[0_2px_6px_rgba(0,0,0,0.15)] transition-colors"
                         required
                       />
                     </div>
@@ -155,14 +155,14 @@ export function Dashboard() {
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-white/70 mb-1">End Date</label>
                     <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/80" />
                       <input
                         type="date"
                         min={startDate}
                         value={endDate}
                         onChange={(e) => setEndDate(e.target.value)}
                         disabled={isHalfDay}
-                        className="w-full bg-black/20 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all disabled:opacity-50"
+                        className="w-full bg-blue-500 hover:bg-blue-600 text-white rounded-lg pl-10 pr-[14px] py-[8px] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 shadow-[0_2px_6px_rgba(0,0,0,0.15)] transition-colors disabled:opacity-50 disabled:hover:bg-blue-500"
                         required
                       />
                     </div>

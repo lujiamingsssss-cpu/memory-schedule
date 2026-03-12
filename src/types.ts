@@ -18,16 +18,25 @@ export interface User {
   avatar_url: string;
 }
 
+export interface LearningPlan {
+  id: string;
+  user_id: string;
+  plan_name: string;
+  created_at: string;
+}
+
 export interface UserSettings {
   task_mode: TaskMode;
   log_view_mode: LogViewMode;
   backgrounds: Record<PageType, BackgroundTheme>;
   custom_backgrounds?: Partial<Record<PageType, string>>;
+  current_plan_id?: string;
 }
 
 export interface StudyTask {
   id: string;
   user_id: string;
+  plan_id?: string;
   task_type: TaskMode;
   start_page?: number;
   end_page?: number;
@@ -43,6 +52,7 @@ export interface ReviewSchedule {
   id: string;
   task_id: string;
   user_id: string;
+  plan_id?: string;
   review_date: string;
   review_stage: number;
   completed: boolean;

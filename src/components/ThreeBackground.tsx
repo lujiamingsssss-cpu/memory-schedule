@@ -355,7 +355,7 @@ export function ThreeBackground() {
         className="fixed inset-0 -z-10 bg-cover bg-center bg-no-repeat transition-all duration-1000"
         style={{ backgroundImage: `url(${customBackground})` }}
       >
-        <div className="absolute inset-0 bg-black/30 pointer-events-none" />
+        <div className="absolute inset-0 bg-black/40 pointer-events-none transition-colors duration-1000" />
       </div>
     );
   }

@@ -4,6 +4,8 @@ import { useStore } from '../lib/store';
 import { motion } from 'motion/react';
 import { Mail, Lock, User, ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import bcrypt from 'bcryptjs';
+import { ThreeBackground } from '../components/ThreeBackground';
 
 export function Register() {
   console.log('[Register Rendering] Initializing register page...');
@@ -11,8 +13,7 @@ export function Register() {
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
-  const { user } = useStore();
+  const { user, register } = useStore();
   const navigate = useNavigate();
 
   if (user) {
@@ -23,15 +24,9 @@ export function Register() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setSuccessMessage('');
     
     console.log("Register button clicked");
     console.log("Email:", email);
-
-    if (!supabase) {
-      setError('Supabase client is not initialized. Check your environment variables.');
-      return;
-    }
 
     if (email && password && username) {
       const { data, error: signupError } = await supabase.auth.signUp({
@@ -45,19 +40,36 @@ export function Register() {
       });
 
       if (signupError) {
-        console.error("Signup error:", signupError.message);
+        console.error(signupError.message);
         setError(signupError.message);
         return;
       }
 
       console.log("Signup success:", data);
-      setSuccessMessage("Account created successfully. Please check your email to verify your account.");
+      
+      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password
+      });
+
+      if (loginError) {
+        console.error(loginError.message);
+        setError(loginError.message);
+        return;
+      }
+
+      // Update local store so the app recognizes the user
+      const salt = bcrypt.genSaltSync(10);
+      const hash = bcrypt.hashSync(password, salt);
+      register(email, username, hash);
+
+      window.location.href = "/";
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 relative">
-      <div className="absolute inset-0 bg-gradient-to-b from-[#87CEEB]/20 to-[#4682B4]/40 -z-10 pointer-events-none" />
+      <ThreeBackground />
       
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
@@ -75,12 +87,6 @@ export function Register() {
         {error && (
           <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-xl text-red-200 text-sm text-center">
             {error}
-          </div>
-        )}
-
-        {successMessage && (
-          <div className="mb-4 p-3 bg-emerald-500/20 border border-emerald-500/50 rounded-xl text-emerald-200 text-sm text-center">
-            {successMessage}
           </div>
         )}
 

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../lib/store';
 import type { TaskMode, PageType, BackgroundTheme } from '../types';
-import { User as UserIcon, Settings as SettingsIcon, Layout, Upload, Image as ImageIcon, X } from 'lucide-react';
+import { User as UserIcon, Settings as SettingsIcon, Layout, Upload, Image as ImageIcon, X, Sun, Moon, Focus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 const BACKGROUND_OPTIONS: { value: BackgroundTheme; label: string; group: string }[] = [
@@ -12,6 +12,46 @@ const BACKGROUND_OPTIONS: { value: BackgroundTheme; label: string; group: string
   { value: 'garden_rain', label: 'Garden of Words Rain Garden', group: 'Cinematic' },
   { value: 'suzume_sunset', label: 'Suzume Sunset Field', group: 'Cinematic' },
 ];
+
+const compressImage = (file: File, maxWidth: number, maxHeight: number, quality: number): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        } else {
+          reject(new Error('Failed to get canvas context'));
+        }
+      };
+      img.onerror = (error) => reject(error);
+    };
+    reader.onerror = (error) => reject(error);
+  });
+};
 
 export function Settings() {
   const { user, updateUser, settings, updateSettings } = useStore();
@@ -24,19 +64,30 @@ export function Settings() {
   
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('Settings saved automatically');
+  const [toastType, setToastType] = useState<'success' | 'error'>('success');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isInitialMount = useRef(true);
 
   const saveSettings = useCallback(() => {
-    updateUser({
+    const userResult = updateUser({
       username,
       avatar_url: avatarUrl,
     });
-    updateSettings({
+    const settingsResult = updateSettings({
       task_mode: taskMode,
       backgrounds,
       custom_backgrounds: customBackgrounds,
     });
+    
+    if (userResult?.error || settingsResult?.error) {
+      setToastType('error');
+      setToastMessage(userResult?.error || settingsResult?.error || 'Failed to save settings');
+    } else {
+      setToastType('success');
+      setToastMessage('Settings saved automatically');
+    }
+    
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
   }, [username, avatarUrl, taskMode, backgrounds, customBackgrounds, updateUser, updateSettings]);
@@ -49,19 +100,20 @@ export function Settings() {
 
     const timer = setTimeout(() => {
       saveSettings();
-    }, 1000);
+    }, 800);
 
     return () => clearTimeout(timer);
   }, [username, avatarUrl, taskMode, backgrounds, customBackgrounds, saveSettings]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setAvatarUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImage(file, 400, 400, 0.8);
+        setAvatarUrl(compressed);
+      } catch (error) {
+        console.error('Failed to compress avatar:', error);
+      }
     }
   };
 
@@ -86,10 +138,14 @@ export function Settings() {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="fixed top-24 right-6 bg-emerald-500/20 border border-emerald-500/50 text-emerald-200 px-4 py-2 rounded-xl shadow-lg backdrop-blur-md z-50 flex items-center gap-2"
+            className={`fixed top-24 right-6 border px-4 py-2 rounded-xl shadow-lg backdrop-blur-md z-50 flex items-center gap-2 ${
+              toastType === 'success' 
+                ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-200' 
+                : 'bg-red-500/20 border-red-500/50 text-red-200'
+            }`}
           >
-            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            Settings saved automatically
+            <div className={`w-2 h-2 rounded-full animate-pulse ${toastType === 'success' ? 'bg-emerald-400' : 'bg-red-400'}`} />
+            {toastMessage}
           </motion.div>
         )}
       </AnimatePresence>
@@ -198,7 +254,7 @@ export function Settings() {
                   disabled={!!customBackgrounds[page]}
                 >
                   {Array.from(new Set(BACKGROUND_OPTIONS.map(o => o.group))).map(group => (
-                    <optgroup key={group} label={group} className="bg-[#1a1c2c] text-white/50">
+                    <optgroup key={group} label={group} className="bg-black text-white/50">
                       {BACKGROUND_OPTIONS.filter(o => o.group === group).map(option => (
                         <option key={option.value} value={option.value} className="text-white">
                           {option.label}
@@ -214,14 +270,15 @@ export function Settings() {
                     accept="image/png, image/jpeg"
                     className="hidden"
                     id={`bg-upload-${page}`}
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          setCustomBackgrounds(prev => ({ ...prev, [page]: reader.result as string }));
-                        };
-                        reader.readAsDataURL(file);
+                        try {
+                          const compressed = await compressImage(file, 1280, 720, 0.6);
+                          setCustomBackgrounds(prev => ({ ...prev, [page]: compressed }));
+                        } catch (error) {
+                          console.error('Failed to compress background:', error);
+                        }
                       }
                     }}
                   />
