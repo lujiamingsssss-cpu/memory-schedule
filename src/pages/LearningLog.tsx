@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useStore, REVIEW_INTERVALS } from '../lib/store';
 import { calculateStreak } from '../lib/utils';
 import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, subMonths, addMonths, differenceInDays } from 'date-fns';
@@ -37,6 +37,12 @@ export function LearningLog() {
   
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+
+  // Reset selected task when plan changes
+  useEffect(() => {
+    setSelectedTaskId(null);
+  }, [settings.current_plan_id]);
 
   const daysInMonth = useMemo(() => {
     const start = startOfMonth(currentMonth);
@@ -308,36 +314,115 @@ export function LearningLog() {
         )}
       </div>
 
-      {/* Recent Logs List */}
-      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl">
-        <h3 className="text-xl font-medium text-white/90 mb-6">Recent Records</h3>
-        <div className="space-y-3">
-          {recentRecords.length === 0 ? (
-            <div className="text-center py-8 text-white/40 italic">
-              No learning records yet. Start your journey today!
-            </div>
-          ) : (
-            recentRecords.map(record => (
-              <div key={record.id} className="bg-black/20 border border-white/5 rounded-xl p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
-                <div>
-                  <div className="flex items-center gap-3 mb-1">
-                    <span className="font-medium text-white/90 text-lg">{record.title}</span>
-                    <span className="text-xs px-2 py-0.5 rounded-md bg-white/10 text-white/70 uppercase tracking-wider">
-                      {record.type}
-                    </span>
-                  </div>
-                  <div className="text-sm text-white/50 flex items-center gap-3">
-                    <span>{record.date ? format(parseISO(record.date), 'MMMM d, yyyy') : 'Unknown Date'}</span>
-                    <span className="w-1 h-1 rounded-full bg-white/20" />
-                    <span className="flex items-center gap-1">
-                      {record.pages > 0 && <><Book className="w-3 h-3" /> {record.pages} pages</>}
-                      {record.pages > 0 && record.days > 0 && <span className="w-1 h-1 rounded-full bg-white/20 mx-1" />}
-                      {record.days > 0 && <><Calendar className="w-3 h-3" /> {record.days} days</>}
-                    </span>
+      {/* Recent Logs List & Details */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl">
+          <h3 className="text-xl font-medium text-white/90 mb-6">Recent Records</h3>
+          <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+            {recentRecords.length === 0 ? (
+              <div className="text-center py-8 text-white/40 italic">
+                No learning records yet. Start your journey today!
+              </div>
+            ) : (
+              recentRecords.map(record => (
+                <div 
+                  key={record.id} 
+                  onClick={() => setSelectedTaskId(record.id)}
+                  className={`border rounded-xl p-4 flex items-center justify-between transition-colors cursor-pointer ${
+                    record.id === selectedTaskId 
+                      ? 'bg-indigo-500/20 border-indigo-500/50' 
+                      : 'bg-black/20 border-white/5 hover:bg-white/5'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center gap-3 mb-1">
+                      <span className="font-medium text-white/90 text-lg">{record.title}</span>
+                      <span className="text-xs px-2 py-0.5 rounded-md bg-white/10 text-white/70 uppercase tracking-wider">
+                        {record.type}
+                      </span>
+                    </div>
+                    <div className="text-sm text-white/50 flex items-center gap-3">
+                      <span>{record.date ? format(parseISO(record.date), 'MMMM d, yyyy') : 'Unknown Date'}</span>
+                      <span className="w-1 h-1 rounded-full bg-white/20" />
+                      <span className="flex items-center gap-1">
+                        {record.pages > 0 && <><Book className="w-3 h-3" /> {record.pages} pages</>}
+                        {record.pages > 0 && record.days > 0 && <span className="w-1 h-1 rounded-full bg-white/20 mx-1" />}
+                        {record.days > 0 && <><Calendar className="w-3 h-3" /> {record.days} days</>}
+                      </span>
+                    </div>
                   </div>
                 </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Task Details Area */}
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl">
+          <h3 className="text-xl font-medium text-white/90 mb-6">Task Details</h3>
+          {selectedTaskId ? (
+            <div className="space-y-4">
+              {(() => {
+                const selectedTask = recentRecords.find(r => r.id === selectedTaskId);
+                if (!selectedTask) return <p className="text-white/40 italic">Task not found.</p>;
+                return (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    key={selectedTask.id}
+                  >
+                    <h4 className="text-2xl font-medium text-white/90 mb-2">{selectedTask.title}</h4>
+                    <div className="inline-block px-3 py-1 rounded-lg bg-indigo-500/20 text-indigo-300 text-sm font-medium mb-6">
+                      {selectedTask.type}
+                    </div>
+                    
+                    <div className="space-y-4 bg-black/20 p-6 rounded-2xl border border-white/5">
+                      <div className="flex items-center gap-4 text-white/80">
+                        <div className="p-3 bg-white/5 rounded-xl">
+                          <CalendarIcon className="w-5 h-5 text-indigo-400" />
+                        </div>
+                        <div>
+                          <div className="text-xs text-white/40 uppercase tracking-wider mb-1">Completion Date</div>
+                          <div className="font-medium">{selectedTask.date ? format(parseISO(selectedTask.date), 'MMMM d, yyyy') : 'Unknown Date'}</div>
+                        </div>
+                      </div>
+                      
+                      {selectedTask.pages > 0 && (
+                        <div className="flex items-center gap-4 text-white/80">
+                          <div className="p-3 bg-white/5 rounded-xl">
+                            <Book className="w-5 h-5 text-emerald-400" />
+                          </div>
+                          <div>
+                            <div className="text-xs text-white/40 uppercase tracking-wider mb-1">Pages Read</div>
+                            <div className="font-medium">{selectedTask.pages} pages</div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {selectedTask.days > 0 && (
+                        <div className="flex items-center gap-4 text-white/80">
+                          <div className="p-3 bg-white/5 rounded-xl">
+                            <Calendar className="w-5 h-5 text-orange-400" />
+                          </div>
+                          <div>
+                            <div className="text-xs text-white/40 uppercase tracking-wider mb-1">Duration</div>
+                            <div className="font-medium">{selectedTask.days} days</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })()}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-white/40 flex flex-col items-center justify-center h-[300px]">
+              <div className="w-16 h-16 mb-4 rounded-full bg-white/5 flex items-center justify-center">
+                <Book className="w-8 h-8 opacity-50" />
               </div>
-            ))
+              <p className="text-lg">Select a task</p>
+              <p className="text-sm opacity-70 mt-1">Click on any record from the list to view its details</p>
+            </div>
           )}
         </div>
       </div>

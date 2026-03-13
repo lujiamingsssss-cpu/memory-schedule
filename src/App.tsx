@@ -13,7 +13,7 @@ import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { ResetPassword } from './pages/ResetPassword';
 import { UpdatePassword } from './pages/UpdatePassword';
-import { supabase } from './lib/supabase';
+import { supabase } from './lib/supabaseClient';
 import { useStore, useStoreBase } from './lib/store';
 
 export default function App() {
