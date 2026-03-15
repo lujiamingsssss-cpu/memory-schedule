@@ -142,30 +142,14 @@ export function LearningLog() {
   };
 
   // Combine tasks and reviews for recent list
-  const getWorkloadColor = (workload: number) => {
-    if (workload === 0) return 'transparent';
-    if (workload <= 2.5) return '#4CAF50';
-    if (workload <= 4) return '#42A5F5';
-    if (workload <= 5) return '#FFA726';
-    return '#EF5350';
-  };
-
-  const getWorkloadLevel = (workload: number) => {
-    if (workload === 0) return 'None';
-    if (workload <= 2.5) return 'Light';
-    if (workload <= 4) return 'Normal';
-    if (workload <= 5) return 'Heavy';
-    return 'Severe';
-  };
-
   const recentRecords = useMemo(() => {
     const completedTasks = tasks.filter(t => t.completed).map(t => ({
       id: `task-${t.id}`,
-      title: t.title || (t.type === 'page' ? `Pages ${t.start_page} - ${t.end_page}` : `${t.start_date} - ${t.end_date}`),
+      title: t.task_type === 'page' ? `Pages ${t.start_page} - ${t.end_page}` : `${t.start_date} - ${t.end_date}`,
       type: 'Task',
       date: t.learn_date,
-      pages: t.type === 'page' ? (t.end_page! - t.start_page! + 1) : 0,
-      days: t.type === 'date' && t.start_date && t.end_date ? (t.is_half_day ? 0.5 : (differenceInDays(parseISO(t.end_date), parseISO(t.start_date)) + 1)) : 0,
+      pages: t.task_type === 'page' ? (t.end_page! - t.start_page! + 1) : 0,
+      days: t.task_type === 'date' && t.start_date && t.end_date ? (t.is_half_day ? 0.5 : (differenceInDays(parseISO(t.end_date), parseISO(t.start_date)) + 1)) : 0,
     }));
 
     const completedReviews = reviews.filter(r => r.completed).map(r => {
@@ -173,11 +157,11 @@ export function LearningLog() {
       if (!t) return null;
       return {
         id: `review-${r.id}`,
-        title: t.title || (t.type === 'page' ? `Pages ${t.start_page} - ${t.end_page}` : (t.is_half_day ? `${t.start_date} (Half Day)` : `${t.start_date} - ${t.end_date}`)),
+        title: t.task_type === 'page' ? `Pages ${t.start_page} - ${t.end_page}` : (t.is_half_day ? `${t.start_date} (Half Day)` : `${t.start_date} - ${t.end_date}`),
         type: `Review (Day ${REVIEW_INTERVALS[r.review_stage - 1] + 1})`,
         date: r.review_date,
-        pages: t.type === 'page' ? (t.end_page! - t.start_page! + 1) : 0,
-        days: t.type === 'date' && t.start_date && t.end_date ? (t.is_half_day ? 0.5 : (differenceInDays(parseISO(t.end_date), parseISO(t.start_date)) + 1)) : 0,
+        pages: t.task_type === 'page' ? (t.end_page! - t.start_page! + 1) : 0,
+        days: t.task_type === 'date' && t.start_date && t.end_date ? (t.is_half_day ? 0.5 : (differenceInDays(parseISO(t.end_date), parseISO(t.start_date)) + 1)) : 0,
       };
     }).filter(Boolean) as any[];
 
@@ -185,15 +169,6 @@ export function LearningLog() {
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 10);
   }, [tasks, reviews]);
-
-  // Automatically select the first task when tasks load
-  useEffect(() => {
-    if (recentRecords.length > 0 && !selectedTaskId) {
-      setSelectedTaskId(recentRecords[0].id);
-    } else if (recentRecords.length === 0) {
-      setSelectedTaskId(null);
-    }
-  }, [recentRecords, selectedTaskId]);
 
   return (
     <motion.div 
@@ -287,10 +262,48 @@ export function LearningLog() {
                   }
                 });
                 
-                const workload = dayTasks.length + dayReviews.length;
-                const workloadColor = getWorkloadColor(workload);
+                const totalTasks = dayTasks.length + dayReviews.length;
+                const completedTasks = dayTasks.filter(t => t.completed).length + dayReviews.filter(r => r.completed).length;
+                const unfinishedTasks = totalTasks - completedTasks;
                 
-                const tooltip = `Date: ${dateStr}\nDaily Tasks: ${dayTasks.length}\nReview Tasks: ${dayReviews.length}\nTotal Workload: ${workload}\nWorkload Level: ${getWorkloadLevel(workload)}\nPlanned Pages: ${plannedPages}\nPlanned Days: ${plannedDays}`;
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const dayDate = new Date(day);
+                dayDate.setHours(0, 0, 0, 0);
+                
+                const isPast = dayDate < today;
+                const isFuture = dayDate > today;
+                
+                let statusIcon = null;
+                let statusColor = '';
+                let taskNumber = null;
+                
+                if (totalTasks > 0) {
+                  if (isFuture) {
+                    statusIcon = '📅';
+                    taskNumber = totalTasks;
+                    statusColor = 'text-blue-400';
+                  } else {
+                    if (unfinishedTasks === 0) {
+                      statusIcon = '✅';
+                      statusColor = 'text-emerald-400';
+                    } else if (unfinishedTasks <= 2) {
+                      statusIcon = '⚠️';
+                      statusColor = 'text-yellow-400';
+                      taskNumber = unfinishedTasks;
+                    } else if (unfinishedTasks <= 5) {
+                      statusIcon = '🚨';
+                      statusColor = 'text-orange-400';
+                      taskNumber = unfinishedTasks;
+                    } else {
+                      statusIcon = '⛔';
+                      statusColor = 'text-red-400';
+                      taskNumber = unfinishedTasks;
+                    }
+                  }
+                }
+                
+                const tooltip = `Date: ${dateStr}\nTotal Tasks: ${totalTasks}\nCompleted: ${completedTasks}\nUnfinished: ${unfinishedTasks}`;
                 
                 return (
                   <div 
@@ -302,13 +315,12 @@ export function LearningLog() {
                       ${isTodayDate ? 'ring-2 ring-white/50 ring-offset-2 ring-offset-[#1a1c2c]' : ''}
                     `}
                   >
-                    <span className={`mb-2 z-10 ${score === 0 ? 'text-white/40' : ''}`}>{format(day, 'd')}</span>
+                    <span className={`z-10 ${score === 0 ? 'text-white/40' : ''} ${statusIcon ? 'mb-1' : ''}`}>{format(day, 'd')}</span>
                     
-                    {/* Stacked Bar Chart for Workload */}
-                    {workload > 0 && (
-                      <div className="absolute bottom-0 left-0 right-0 px-1 pb-1 flex flex-col justify-end gap-[1px] pointer-events-none z-0" style={{ height: '60%' }}>
-                        {dayReviews.length > 0 && <div className="w-full rounded-t-sm opacity-60" style={{ height: `${dayReviews.length * 4}px`, backgroundColor: workloadColor }} />}
-                        {dayTasks.length > 0 && <div className="w-full rounded-b-sm opacity-90" style={{ height: `${dayTasks.length * 4}px`, backgroundColor: workloadColor }} />}
+                    {statusIcon && (
+                      <div className={`flex items-center gap-1 text-xs font-medium z-10 ${statusColor}`}>
+                        <span>{statusIcon}</span>
+                        {taskNumber !== null && <span>{taskNumber}</span>}
                       </div>
                     )}
                   </div>
@@ -474,39 +486,37 @@ function DayDetailsModal({
   let plannedDays = 0;
   
   dayTasks.forEach((t: any) => {
-    if (t.type === 'page') plannedPages += (t.end_page! - t.start_page! + 1);
-    if (t.type === 'date' && t.start_date && t.end_date) plannedDays += (differenceInDays(parseISO(t.end_date), parseISO(t.start_date)) + 1);
+    if (t.task_type === 'page') plannedPages += (t.end_page! - t.start_page! + 1);
+    if (t.task_type === 'date' && t.start_date && t.end_date) plannedDays += (differenceInDays(parseISO(t.end_date), parseISO(t.start_date)) + 1);
   });
   
   dayReviews.forEach((r: any) => {
     const t = tasks.find((task: any) => task.id === r.task_id);
     if (t) {
-      if (t.type === 'page') plannedPages += (t.end_page! - t.start_page! + 1);
-      if (t.type === 'date' && t.start_date && t.end_date) plannedDays += (differenceInDays(parseISO(t.end_date), parseISO(t.start_date)) + 1);
+      if (t.task_type === 'page') plannedPages += (t.end_page! - t.start_page! + 1);
+      if (t.task_type === 'date' && t.start_date && t.end_date) plannedDays += (differenceInDays(parseISO(t.end_date), parseISO(t.start_date)) + 1);
     }
   });
 
-  const handleAddTask = async (e: React.FormEvent) => {
+  const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault();
     if (settings.task_mode === 'page') {
       if (!startPage || !endPage) return;
-      await addTask({
-        type: 'page',
+      addTask({
+        task_type: 'page',
         start_page: parseFloat(startPage),
         end_page: parseFloat(endPage),
-        title: `Pages ${startPage} - ${endPage}`,
         learn_date: date,
       });
       setStartPage('');
       setEndPage('');
     } else {
       if (!startDate || !endDate) return;
-      await addTask({
-        type: 'date',
+      addTask({
+        task_type: 'date',
         start_date: startDate,
         end_date: endDate,
         is_half_day: isHalfDay,
-        title: isHalfDay ? `${startDate} (Half Day)` : `${startDate} - ${endDate}`,
         learn_date: date,
       });
       setStartDate('');
@@ -517,8 +527,7 @@ function DayDetailsModal({
   };
 
   const renderTaskContent = (task: any) => {
-    if (task.title) return task.title;
-    if (task.type === 'page') {
+    if (task.task_type === 'page') {
       return `Pages ${task.start_page} - ${task.end_page}`;
     }
     return task.is_half_day ? `${task.start_date} (Half Day)` : `${task.start_date} to ${task.end_date}`;
@@ -654,14 +663,14 @@ function DayDetailsModal({
                 {dayTasks.map((task: any) => (
                   <div key={task.id} className="flex items-center justify-between bg-white/5 border border-white/5 rounded-xl p-3 group">
                     <div className="flex items-center gap-3">
-                      <button onClick={async () => await toggleTaskCompletion(task.id)} className="text-white/50 hover:text-indigo-400 transition-colors">
+                      <button onClick={() => toggleTaskCompletion(task.id)} className="text-white/50 hover:text-indigo-400 transition-colors">
                         {task.completed ? <CheckCircle2 className="w-5 h-5 text-emerald-400" /> : <Circle className="w-5 h-5" />}
                       </button>
                       <span className={`text-sm ${task.completed ? 'text-white/40 line-through' : 'text-white/90'}`}>
                         {renderTaskContent(task)}
                       </span>
                     </div>
-                    <button onClick={async () => await deleteTask(task.id)} className="text-white/20 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100">
+                    <button onClick={() => deleteTask(task.id)} className="text-white/20 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -682,7 +691,7 @@ function DayDetailsModal({
                   return (
                     <div key={review.id} className="flex items-center justify-between bg-white/5 border border-white/5 rounded-xl p-3 group">
                       <div className="flex items-center gap-3">
-                        <button onClick={async () => await toggleReviewCompletion(review.id)} className="text-white/50 hover:text-purple-400 transition-colors">
+                        <button onClick={() => toggleReviewCompletion(review.id)} className="text-white/50 hover:text-purple-400 transition-colors">
                           {review.completed ? <CheckCircle2 className="w-5 h-5 text-emerald-400" /> : <Circle className="w-5 h-5" />}
                         </button>
                         <div className="flex flex-col">
@@ -692,7 +701,7 @@ function DayDetailsModal({
                           <span className="text-xs text-purple-400/70">Stage {review.review_stage} (Day {REVIEW_INTERVALS[review.review_stage - 1] + 1})</span>
                         </div>
                       </div>
-                      <button onClick={async () => await deleteReview(review.id)} className="text-white/20 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100">
+                      <button onClick={() => deleteReview(review.id)} className="text-white/20 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
