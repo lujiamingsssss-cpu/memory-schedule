@@ -33,11 +33,12 @@ export interface UserSettings {
   current_plan_id?: string;
 }
 
-export interface StudyTask {
+export interface Task {
   id: string;
   user_id: string;
   plan_id?: string;
-  task_type: TaskMode;
+  title?: string;
+  type: TaskMode;
   start_page?: number;
   end_page?: number;
   start_date?: string;

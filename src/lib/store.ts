@@ -3,6 +3,7 @@ import { addDays, format, parseISO, differenceInDays } from 'date-fns';
 import type { User, UserSettings, StudyTask, ReviewSchedule, DailyStats, LearningPlan } from '../types';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
+import { get as idbGet, set as idbSet } from 'idb-keyval';
 
 const DEFAULT_USER: User = {
   id: 'local-user',
@@ -140,6 +141,16 @@ export const useStoreBase = create<StoreState>((set, get) => {
       if (!userSettings) {
         userSettings = loadFromStorage('hoshi_settings', DEFAULT_SETTINGS);
       }
+      
+      // Migrate custom_backgrounds from localStorage to idb-keyval if present
+      if (userSettings && userSettings.custom_backgrounds && Object.keys(userSettings.custom_backgrounds).length > 0) {
+        const bgsToMigrate = userSettings.custom_backgrounds;
+        idbSet(`hoshi_custom_bg_${userWithoutPassword.id}`, bgsToMigrate).catch(console.error);
+        delete userSettings.custom_backgrounds;
+        saveToStorage(`hoshi_settings_${userWithoutPassword.id}`, userSettings);
+        userSettings.custom_backgrounds = bgsToMigrate;
+      }
+
       const newSettings = {
         ...DEFAULT_SETTINGS,
         ...userSettings,
@@ -149,6 +160,19 @@ export const useStoreBase = create<StoreState>((set, get) => {
 
       set({ user: userWithoutPassword, settings: newSettings });
       saveToStorage('hoshi_user', userWithoutPassword);
+      
+      // Load custom backgrounds from IndexedDB asynchronously
+      idbGet(`hoshi_custom_bg_${userWithoutPassword.id}`).then((idbBgs) => {
+        if (idbBgs) {
+          set((state) => ({
+            settings: {
+              ...state.settings,
+              custom_backgrounds: { ...state.settings.custom_backgrounds, ...idbBgs }
+            }
+          }));
+        }
+      }).catch(console.error);
+
       return { success: true };
     },
 
@@ -218,17 +242,51 @@ export const useStoreBase = create<StoreState>((set, get) => {
     setSessionUser: (user) => {
       set({ user });
       saveToStorage('hoshi_user', user);
+      
+      // Check if we need to migrate settings for this user
+      let userSettings = loadFromStorage(`hoshi_settings_${user.id}`, null);
+      if (userSettings && userSettings.custom_backgrounds && Object.keys(userSettings.custom_backgrounds).length > 0) {
+        const bgsToMigrate = userSettings.custom_backgrounds;
+        idbSet(`hoshi_custom_bg_${user.id}`, bgsToMigrate).catch(console.error);
+        delete userSettings.custom_backgrounds;
+        saveToStorage(`hoshi_settings_${user.id}`, userSettings);
+        
+        set((state) => ({
+          settings: {
+            ...state.settings,
+            custom_backgrounds: { ...state.settings.custom_backgrounds, ...bgsToMigrate }
+          }
+        }));
+      }
+      
+      // Load custom backgrounds from IndexedDB asynchronously
+      idbGet(`hoshi_custom_bg_${user.id}`).then((idbBgs) => {
+        if (idbBgs) {
+          set((state) => ({
+            settings: {
+              ...state.settings,
+              custom_backgrounds: { ...state.settings.custom_backgrounds, ...idbBgs }
+            }
+          }));
+        }
+      }).catch(console.error);
     },
 
     updateSettings: (newSettings) => {
       const { user, settings } = get();
       const updatedSettings = { ...settings, ...newSettings };
       
+      const { custom_backgrounds, ...settingsToSave } = updatedSettings;
+      
+      if (custom_backgrounds) {
+        idbSet(`hoshi_custom_bg_${user?.id || 'global'}`, custom_backgrounds).catch(console.error);
+      }
+
       if (user) {
-        const success = saveToStorage(`hoshi_settings_${user.id}`, updatedSettings);
+        const success = saveToStorage(`hoshi_settings_${user.id}`, settingsToSave);
         if (!success) return { success: false, error: 'Failed to save settings. Storage quota exceeded.' };
       }
-      const globalSuccess = saveToStorage('hoshi_settings', updatedSettings);
+      const globalSuccess = saveToStorage('hoshi_settings', settingsToSave);
       if (!globalSuccess) return { success: false, error: 'Failed to save global settings. Storage quota exceeded.' };
       
       set({ settings: updatedSettings });
@@ -434,5 +492,55 @@ export function useStore() {
     reviews: store.allReviews.filter(r => r.user_id === store.user?.id && r.plan_id === store.settings.current_plan_id),
   };
 }
+
+// Async initialization for idb-keyval
+const initIdb = async () => {
+  const state = useStoreBase.getState();
+  const userId = state.user?.id || 'global';
+  const settingsKey = state.user?.id ? `hoshi_settings_${userId}` : 'hoshi_settings';
+  
+  try {
+    // Check if we have custom_backgrounds in localStorage that need migration
+    let needsMigration = false;
+    let currentCustomBgs = state.settings.custom_backgrounds || {};
+    
+    const rawSettings = localStorage.getItem(settingsKey);
+    if (rawSettings) {
+      const parsed = JSON.parse(rawSettings);
+      if (parsed.custom_backgrounds && Object.keys(parsed.custom_backgrounds).length > 0) {
+        needsMigration = true;
+        currentCustomBgs = { ...currentCustomBgs, ...parsed.custom_backgrounds };
+        
+        // Remove from localStorage
+        delete parsed.custom_backgrounds;
+        localStorage.setItem(settingsKey, JSON.stringify(parsed));
+      }
+    }
+    
+    if (needsMigration) {
+      await idbSet(`hoshi_custom_bg_${userId}`, currentCustomBgs);
+      useStoreBase.setState({
+        settings: {
+          ...useStoreBase.getState().settings,
+          custom_backgrounds: currentCustomBgs
+        }
+      });
+    } else {
+      const idbBgs = await idbGet(`hoshi_custom_bg_${userId}`);
+      if (idbBgs) {
+        useStoreBase.setState({
+          settings: {
+            ...useStoreBase.getState().settings,
+            custom_backgrounds: { ...useStoreBase.getState().settings.custom_backgrounds, ...idbBgs }
+          }
+        });
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load custom backgrounds from IndexedDB', e);
+  }
+};
+
+initIdb();
 
 

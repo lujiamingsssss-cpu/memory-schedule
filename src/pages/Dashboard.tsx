@@ -16,26 +16,28 @@ export function Dashboard() {
 
   const today = format(new Date(), 'yyyy-MM-dd');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (settings.task_mode === 'page') {
       if (!startPage || !endPage) return;
-      addTask({
-        task_type: 'page',
+      await addTask({
+        type: 'page',
         start_page: parseFloat(startPage),
         end_page: parseFloat(endPage),
+        title: `Pages ${startPage} - ${endPage}`,
         learn_date: today,
       });
       setStartPage('');
       setEndPage('');
     } else {
       if (!startDate || !endDate) return;
-      addTask({
-        task_type: 'date',
+      await addTask({
+        type: 'date',
         start_date: startDate,
         end_date: endDate,
         is_half_day: isHalfDay,
+        title: isHalfDay ? `${startDate} (Half Day)` : `${startDate} - ${endDate}`,
         learn_date: today,
       });
       setStartDate('');
@@ -53,9 +55,9 @@ export function Dashboard() {
 
   [...todayTasks.filter(t => t.completed), ...todayReviews.filter(r => r.completed).map(r => tasks.find(t => t.id === r.task_id)).filter(Boolean)].forEach(t => {
     if (!t) return;
-    if (t.task_type === 'page' && t.start_page !== undefined && t.end_page !== undefined) {
+    if (t.type === 'page' && t.start_page !== undefined && t.end_page !== undefined) {
       todayPages += (t.end_page - t.start_page + 1);
-    } else if (t.task_type === 'date' && t.start_date && t.end_date) {
+    } else if (t.type === 'date' && t.start_date && t.end_date) {
       if (t.is_half_day) {
         todayDays += 0.5;
       } else {
@@ -65,7 +67,8 @@ export function Dashboard() {
   });
 
   const renderTaskContent = (task: any) => {
-    if (task.task_type === 'page') {
+    if (task.title) return task.title;
+    if (task.type === 'page') {
       return `Pages ${task.start_page} - ${task.end_page}`;
     } else {
       const start = task.start_date ? format(parseISO(task.start_date), 'MMM d, yyyy') : 'Unknown';
@@ -209,7 +212,7 @@ export function Dashboard() {
                       {renderTaskContent(task)}
                     </span>
                     <button 
-                      onClick={() => !task.completed && completeTask(task.id)}
+                      onClick={async () => !task.completed && await completeTask(task.id)}
                       disabled={task.completed}
                       className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${task.completed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'}`}
                     >
@@ -238,7 +241,7 @@ export function Dashboard() {
                         {renderTaskContent(task)}
                       </span>
                       <button 
-                        onClick={() => !review.completed && completeReview(review.id)}
+                        onClick={async () => !review.completed && await completeReview(review.id)}
                         disabled={review.completed}
                         className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${review.completed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'}`}
                       >

@@ -34,19 +34,19 @@ export function PlanManager() {
     }
   }, [plans, settings.current_plan_id, createPlan, switchPlan]);
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPlanName.trim()) {
-      createPlan(newPlanName.trim());
+      await createPlan(newPlanName.trim());
       setNewPlanName('');
       setIsCreating(false);
     }
   };
 
-  const handleRename = (e: React.FormEvent, planId: string) => {
+  const handleRename = async (e: React.FormEvent, planId: string) => {
     e.preventDefault();
     if (newPlanName.trim()) {
-      renamePlan(planId, newPlanName.trim());
+      await renamePlan(planId, newPlanName.trim());
       setNewPlanName('');
       setIsRenaming(null);
     }
@@ -119,7 +119,7 @@ export function PlanManager() {
                         </button>
                         {plans.length > 1 && (
                           <button
-                            onClick={() => deletePlan(plan.id)}
+                            onClick={async () => await deletePlan(plan.id)}
                             className="p-1.5 text-white/50 hover:text-red-400 hover:bg-white/10 rounded-lg transition-colors"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
