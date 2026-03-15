@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useStore, REVIEW_INTERVALS } from '../lib/store';
 import { calculateStreak } from '../lib/utils';
-import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, subMonths, addMonths, differenceInDays } from 'date-fns';
+import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, subMonths, addMonths, differenceInDays, isAfter, startOfDay } from 'date-fns';
 import { Flame, Calendar as CalendarIcon, BarChart3, ChevronLeft, ChevronRight, Book, Calendar, X, Plus, Trash2, CheckCircle2, Circle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -142,14 +142,30 @@ export function LearningLog() {
   };
 
   // Combine tasks and reviews for recent list
+  const getWorkloadColor = (workload: number) => {
+    if (workload === 0) return 'transparent';
+    if (workload <= 2.5) return '#4CAF50';
+    if (workload <= 4) return '#42A5F5';
+    if (workload <= 5) return '#FFA726';
+    return '#EF5350';
+  };
+
+  const getWorkloadLevel = (workload: number) => {
+    if (workload === 0) return 'None';
+    if (workload <= 2.5) return 'Light';
+    if (workload <= 4) return 'Normal';
+    if (workload <= 5) return 'Heavy';
+    return 'Severe';
+  };
+
   const recentRecords = useMemo(() => {
     const completedTasks = tasks.filter(t => t.completed).map(t => ({
       id: `task-${t.id}`,
-      title: t.task_type === 'page' ? `Pages ${t.start_page} - ${t.end_page}` : `${t.start_date} - ${t.end_date}`,
+      title: t.title || (t.type === 'page' ? `Pages ${t.start_page} - ${t.end_page}` : `${t.start_date} - ${t.end_date}`),
       type: 'Task',
       date: t.learn_date,
-      pages: t.task_type === 'page' ? (t.end_page! - t.start_page! + 1) : 0,
-      days: t.task_type === 'date' && t.start_date && t.end_date ? (t.is_half_day ? 0.5 : (differenceInDays(parseISO(t.end_date), parseISO(t.start_date)) + 1)) : 0,
+      pages: t.type === 'page' ? (t.end_page! - t.start_page! + 1) : 0,
+      days: t.type === 'date' && t.start_date && t.end_date ? (t.is_half_day ? 0.5 : (differenceInDays(parseISO(t.end_date), parseISO(t.start_date)) + 1)) : 0,
     }));
 
     const completedReviews = reviews.filter(r => r.completed).map(r => {
@@ -157,11 +173,11 @@ export function LearningLog() {
       if (!t) return null;
       return {
         id: `review-${r.id}`,
-        title: t.task_type === 'page' ? `Pages ${t.start_page} - ${t.end_page}` : (t.is_half_day ? `${t.start_date} (Half Day)` : `${t.start_date} - ${t.end_date}`),
+        title: t.title || (t.type === 'page' ? `Pages ${t.start_page} - ${t.end_page}` : (t.is_half_day ? `${t.start_date} (Half Day)` : `${t.start_date} - ${t.end_date}`)),
         type: `Review (Day ${REVIEW_INTERVALS[r.review_stage - 1] + 1})`,
         date: r.review_date,
-        pages: t.task_type === 'page' ? (t.end_page! - t.start_page! + 1) : 0,
-        days: t.task_type === 'date' && t.start_date && t.end_date ? (t.is_half_day ? 0.5 : (differenceInDays(parseISO(t.end_date), parseISO(t.start_date)) + 1)) : 0,
+        pages: t.type === 'page' ? (t.end_page! - t.start_page! + 1) : 0,
+        days: t.type === 'date' && t.start_date && t.end_date ? (t.is_half_day ? 0.5 : (differenceInDays(parseISO(t.end_date), parseISO(t.start_date)) + 1)) : 0,
       };
     }).filter(Boolean) as any[];
 
@@ -169,6 +185,15 @@ export function LearningLog() {
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 10);
   }, [tasks, reviews]);
+
+  // Automatically select the first task when tasks load
+  useEffect(() => {
+    if (recentRecords.length > 0 && !selectedTaskId) {
+      setSelectedTaskId(recentRecords[0].id);
+    } else if (recentRecords.length === 0) {
+      setSelectedTaskId(null);
+    }
+  }, [recentRecords, selectedTaskId]);
 
   return (
     <motion.div 
@@ -262,65 +287,66 @@ export function LearningLog() {
                   }
                 });
                 
+                const workload = dayTasks.length + dayReviews.length;
+                const workloadColor = getWorkloadColor(workload);
+                
+                const tooltip = `Date: ${dateStr}\nDaily Tasks: ${dayTasks.length}\nReview Tasks: ${dayReviews.length}\nTotal Workload: ${workload}\nWorkload Level: ${getWorkloadLevel(workload)}\nPlanned Pages: ${plannedPages}\nPlanned Days: ${plannedDays}`;
+                
                 const totalTasks = dayTasks.length + dayReviews.length;
                 const completedTasks = dayTasks.filter(t => t.completed).length + dayReviews.filter(r => r.completed).length;
                 const unfinishedTasks = totalTasks - completedTasks;
+                const completionRate = totalTasks > 0 ? completedTasks / totalTasks : 0;
                 
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const dayDate = new Date(day);
-                dayDate.setHours(0, 0, 0, 0);
-                
-                const isPast = dayDate < today;
-                const isFuture = dayDate > today;
-                
-                let statusIcon = null;
-                let statusColor = '';
-                let taskNumber = null;
-                
-                if (totalTasks > 0) {
-                  if (isFuture) {
-                    statusIcon = '📅';
-                    taskNumber = totalTasks;
-                    statusColor = 'text-blue-400';
-                  } else {
-                    if (unfinishedTasks === 0) {
-                      statusIcon = '✅';
-                      statusColor = 'text-emerald-400';
-                    } else if (unfinishedTasks <= 2) {
-                      statusIcon = '⚠️';
-                      statusColor = 'text-yellow-400';
-                      taskNumber = unfinishedTasks;
-                    } else if (unfinishedTasks <= 5) {
-                      statusIcon = '🚨';
-                      statusColor = 'text-orange-400';
-                      taskNumber = unfinishedTasks;
-                    } else {
-                      statusIcon = '⛔';
-                      statusColor = 'text-red-400';
-                      taskNumber = unfinishedTasks;
-                    }
-                  }
-                }
-                
-                const tooltip = `Date: ${dateStr}\nTotal Tasks: ${totalTasks}\nCompleted: ${completedTasks}\nUnfinished: ${unfinishedTasks}`;
+                const today = startOfDay(new Date());
+                const isFutureDate = isAfter(day, today);
                 
                 return (
                   <div 
                     key={day.toISOString()} 
                     title={tooltip}
                     onClick={() => setSelectedDate(dateStr)}
-                    className={`aspect-square rounded-xl flex flex-col items-center justify-center text-sm transition-all relative group border cursor-pointer hover:scale-105 overflow-hidden
+                    className={`aspect-square rounded-xl flex flex-col p-1 sm:p-1.5 text-sm transition-all relative group border cursor-pointer hover:scale-105 overflow-hidden
                       ${getCalendarColor(score)}
                       ${isTodayDate ? 'ring-2 ring-white/50 ring-offset-2 ring-offset-[#1a1c2c]' : ''}
                     `}
                   >
-                    <span className={`z-10 ${score === 0 ? 'text-white/40' : ''} ${statusIcon ? 'mb-1' : ''}`}>{format(day, 'd')}</span>
+                    <span className={`absolute top-1 left-1.5 font-medium z-10 text-[10px] sm:text-xs ${score === 0 ? 'text-white/40' : 'text-white/90'}`}>{format(day, 'd')}</span>
                     
-                    {statusIcon && (
-                      <div className={`flex items-center gap-1 text-xs font-medium z-10 ${statusColor}`}>
-                        <span>{statusIcon}</span>
-                        {taskNumber !== null && <span>{taskNumber}</span>}
+                    {totalTasks > 0 && (
+                      <div className="w-full h-full flex flex-col pt-3 sm:pt-4">
+                        {/* Progress Bar - Top 2/3 */}
+                        <div className="flex-[2] flex items-center justify-center w-full">
+                          <div className="flex w-full gap-[2px] px-0.5 h-2.5 sm:h-3.5">
+                            {Array.from({ length: 10 }).map((_, i) => {
+                              const isFilled = i < Math.round(completionRate * 10);
+                              let barColor = 'bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.5)]';
+                              if (completionRate <= 0.3) barColor = 'bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]';
+                              else if (completionRate <= 0.5) barColor = 'bg-orange-400 shadow-[0_0_5px_rgba(251,146,60,0.5)]';
+                              else if (completionRate <= 0.7) barColor = 'bg-yellow-400 shadow-[0_0_5px_rgba(250,204,21,0.5)]';
+                              
+                              return (
+                                <div key={i} className={`flex-1 rounded-[2px] ${isFilled ? barColor : 'bg-black/30'}`} />
+                              );
+                            })}
+                          </div>
+                        </div>
+                        
+                        {/* Status Indicator - Bottom 1/3 */}
+                        <div className="flex-[1] flex items-center justify-center pb-1">
+                          {isFutureDate ? (
+                            <div className="text-[10px] sm:text-xs font-bold text-blue-300 flex items-center gap-1">
+                              <span className="text-[10px] sm:text-[12px]">📅</span>{totalTasks}
+                            </div>
+                          ) : unfinishedTasks > 0 ? (
+                            <div className="text-[10px] sm:text-xs font-bold text-red-400 flex items-center gap-1 drop-shadow-md">
+                              <span className="text-[10px] sm:text-[12px]">🔴</span>{unfinishedTasks}
+                            </div>
+                          ) : (
+                            <div className="text-[10px] sm:text-xs font-bold text-emerald-400 flex items-center gap-1 drop-shadow-md">
+                              <span className="text-[10px] sm:text-[12px]">✅</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -486,37 +512,39 @@ function DayDetailsModal({
   let plannedDays = 0;
   
   dayTasks.forEach((t: any) => {
-    if (t.task_type === 'page') plannedPages += (t.end_page! - t.start_page! + 1);
-    if (t.task_type === 'date' && t.start_date && t.end_date) plannedDays += (differenceInDays(parseISO(t.end_date), parseISO(t.start_date)) + 1);
+    if (t.type === 'page') plannedPages += (t.end_page! - t.start_page! + 1);
+    if (t.type === 'date' && t.start_date && t.end_date) plannedDays += (differenceInDays(parseISO(t.end_date), parseISO(t.start_date)) + 1);
   });
   
   dayReviews.forEach((r: any) => {
     const t = tasks.find((task: any) => task.id === r.task_id);
     if (t) {
-      if (t.task_type === 'page') plannedPages += (t.end_page! - t.start_page! + 1);
-      if (t.task_type === 'date' && t.start_date && t.end_date) plannedDays += (differenceInDays(parseISO(t.end_date), parseISO(t.start_date)) + 1);
+      if (t.type === 'page') plannedPages += (t.end_page! - t.start_page! + 1);
+      if (t.type === 'date' && t.start_date && t.end_date) plannedDays += (differenceInDays(parseISO(t.end_date), parseISO(t.start_date)) + 1);
     }
   });
 
-  const handleAddTask = (e: React.FormEvent) => {
+  const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (settings.task_mode === 'page') {
       if (!startPage || !endPage) return;
-      addTask({
-        task_type: 'page',
+      await addTask({
+        type: 'page',
         start_page: parseFloat(startPage),
         end_page: parseFloat(endPage),
+        title: `Pages ${startPage} - ${endPage}`,
         learn_date: date,
       });
       setStartPage('');
       setEndPage('');
     } else {
       if (!startDate || !endDate) return;
-      addTask({
-        task_type: 'date',
+      await addTask({
+        type: 'date',
         start_date: startDate,
         end_date: endDate,
         is_half_day: isHalfDay,
+        title: isHalfDay ? `${startDate} (Half Day)` : `${startDate} - ${endDate}`,
         learn_date: date,
       });
       setStartDate('');
@@ -527,7 +555,8 @@ function DayDetailsModal({
   };
 
   const renderTaskContent = (task: any) => {
-    if (task.task_type === 'page') {
+    if (task.title) return task.title;
+    if (task.type === 'page') {
       return `Pages ${task.start_page} - ${task.end_page}`;
     }
     return task.is_half_day ? `${task.start_date} (Half Day)` : `${task.start_date} to ${task.end_date}`;
@@ -663,14 +692,14 @@ function DayDetailsModal({
                 {dayTasks.map((task: any) => (
                   <div key={task.id} className="flex items-center justify-between bg-white/5 border border-white/5 rounded-xl p-3 group">
                     <div className="flex items-center gap-3">
-                      <button onClick={() => toggleTaskCompletion(task.id)} className="text-white/50 hover:text-indigo-400 transition-colors">
+                      <button onClick={async () => await toggleTaskCompletion(task.id)} className="text-white/50 hover:text-indigo-400 transition-colors">
                         {task.completed ? <CheckCircle2 className="w-5 h-5 text-emerald-400" /> : <Circle className="w-5 h-5" />}
                       </button>
                       <span className={`text-sm ${task.completed ? 'text-white/40 line-through' : 'text-white/90'}`}>
                         {renderTaskContent(task)}
                       </span>
                     </div>
-                    <button onClick={() => deleteTask(task.id)} className="text-white/20 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100">
+                    <button onClick={async () => await deleteTask(task.id)} className="text-white/20 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -691,7 +720,7 @@ function DayDetailsModal({
                   return (
                     <div key={review.id} className="flex items-center justify-between bg-white/5 border border-white/5 rounded-xl p-3 group">
                       <div className="flex items-center gap-3">
-                        <button onClick={() => toggleReviewCompletion(review.id)} className="text-white/50 hover:text-purple-400 transition-colors">
+                        <button onClick={async () => await toggleReviewCompletion(review.id)} className="text-white/50 hover:text-purple-400 transition-colors">
                           {review.completed ? <CheckCircle2 className="w-5 h-5 text-emerald-400" /> : <Circle className="w-5 h-5" />}
                         </button>
                         <div className="flex flex-col">
@@ -701,7 +730,7 @@ function DayDetailsModal({
                           <span className="text-xs text-purple-400/70">Stage {review.review_stage} (Day {REVIEW_INTERVALS[review.review_stage - 1] + 1})</span>
                         </div>
                       </div>
-                      <button onClick={() => deleteReview(review.id)} className="text-white/20 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100">
+                      <button onClick={async () => await deleteReview(review.id)} className="text-white/20 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
